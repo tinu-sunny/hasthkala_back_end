@@ -1,9 +1,12 @@
 const express = require('express')
 const  cors = require('cors')
-
+const dotenv = require('dotenv')
 
 require('./config/db')
 const route = require('./router/router')
+
+dotenv.config();
+
 
  const  hasthkala = express()
 

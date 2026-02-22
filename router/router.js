@@ -1,11 +1,13 @@
 const express = require('express')
-const { registerUser } = require('../controller/userController')
+const { registerUser, loginUser } = require('../controller/userController')
 
 
 const route = express.Router()
 
- route.post('/register-user',registerUser)
 
+// user Routes
+ route.post('/register-user',registerUser)
+route.post('/user-login',loginUser)
 
 
 
