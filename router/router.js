@@ -1,5 +1,5 @@
 const express = require('express')
-const { registerUser, loginUser } = require('../controller/userController')
+const { registerUser, loginUser, googleLogin } = require('../controller/userController')
 
 
 const route = express.Router()
@@ -8,6 +8,7 @@ const route = express.Router()
 // user Routes
  route.post('/register-user',registerUser)
 route.post('/user-login',loginUser)
+route.post('/googleLogin',googleLogin)
 
 
 
