@@ -4,6 +4,7 @@ const roleMiddleware = (role)=>{
         if(req.payload.role !== role){
             return res.status(403).json({message:"Access denied"})
         }
+
         next();
     }
 }

@@ -2,7 +2,11 @@ const jwt = require('jsonwebtoken');
 
 const jwtMiddleware = (req,res,next)=>{
 
-const token  = req.header.authorization.slice(7);
+    console.log('hii');
+    console.log(req.headers.authorization);
+    
+    
+const token  = req.headers.authorization.slice(7);
 
 try{
     const jwtVerification = jwt.verify(token,process.env.jwtkey);
@@ -17,7 +21,7 @@ try{
 
 }
 catch(err){
-    res.status(401).json({message:"authorization Error",err})
+    res.status(401).json({message1:"authorization Error",message:"Please Login to Explore More",err})
 }
 
 next();
