@@ -1,5 +1,4 @@
-const db= require("../config/db")
-
+const users = require('../Models/UserModel.js');
 
 
 exports.adminAccess=async(req, res) => {
@@ -7,35 +6,21 @@ exports.adminAccess=async(req, res) => {
   }
 
 
-  exports.adminAllCustomerView = async (req,res)=>{
+exports.adminAllCustomerView = async (req, res) => {
+  try {
+    // get all users except admin
+    const allUsers = await users.find({ role: { $ne: "admin" } });
 
-    try{
-         const selectQuery = `SELECT * FROM users WHERE role != ?`
-         db.query(selectQuery,["admin"],async(err,result)=>{
-          if(err){
-            console.log(err);
-            res.status(500).json({
-              message:'Database Error ../',
-              err
-            })
- }
-            else{
-              res.status(200).json({
-                message:"All users data ",
-                result
-              })
-            }
-            
-         
-         })
+    res.status(200).json({
+      message: "All users data",
+      users: allUsers
+    });
 
-
-    }
-    catch(err){
-         
-      res.status(500).json({
-        message:"server Error",
-        err
-      })
-    }
+  } catch (err) {
+    console.log(err);
+    res.status(500).json({
+      message: "Server Error",
+      err
+    });
   }
+};
