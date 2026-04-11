@@ -1,22 +1,14 @@
-const mysql2 = require('mysql2')
+const mongoose = require('mongoose')
+// const connectionString ='mongodb+srv://skilly:skilly@cluster0.pzct9lz.mongodb.net/skilly?appName=Cluster0'
+// connectionString='mongodb+srv://HASTHKALA:hasthkala123@cluster0.klo1tps.mongodb.net/HASTHKALA?appName=Cluster0'
 
-const db = mysql2.createConnection({
-    host:"localhost",
-    user:"root",
-    password:"",
-    database:"hasthkala"
+mongoose.connect(process.env.CONNECTION_STRING).then(res=>{
+    console.log("db connected");
+
+    
 })
 
-db.connect((err)=>{
-    if(err){
-        console.log('db connection error',err);
-        
-    }
-
-    else{
-        console.log('db connected');
-        
-    }
+.catch(err=>{
+    console.log("error"+err);
+    
 })
-
-module.exports = db;

@@ -1,164 +1,185 @@
-const db = require("../config/db");
-
+const users = require('../Models/UserModel.js');
 const bcrypt = require("bcrypt");
-
 const jwt = require("jsonwebtoken");
 
-exports.registerUser = async (req, res) => {
-  const { name, email, phone, password } = req.body;
-
-  const checkQuery = `SELECT * FROM users WHERE email = ?`;
-
-  db.query(checkQuery, [email], async (err, result) => {
-    if (err) {
-      console.log(err);
-      return res.status(500).json({ message: "Database error" });
-    }
-
-    if (result.length > 0) {
-  return res.status(409).json({ message: "Email already exists" });
+// 📅 function to get current date in DD/MM/YYYY
+function getCurrentDate() {
+  const today = new Date();
+  const day = String(today.getDate()).padStart(2, '0');
+  const month = String(today.getMonth() + 1).padStart(2, '0');
+  const year = today.getFullYear();
+  return `${day}/${month}/${year}`;
 }
 
-    try {
-      const hashedPassword = await bcrypt.hash(password, 10);
+exports.registerUser = async (req, res) => {
+  try {
+    const { username, email, phone, profile, role, password } = req.body;
 
-      const role = "user";
-      const profile =
-        "https://cdn.pixabay.com/photo/2023/02/18/11/00/icon-7797704_640.png";
-
-      const addquery = `
-                INSERT INTO users (name, email, phone, password, role, profile) 
-                VALUES (?, ?, ?, ?, ?, ?)
-            `;
-
-      db.query(
-        addquery,
-        [name, email, phone, hashedPassword, role, profile],
-        (err, result) => {
-          if (err) {
-            console.log(err);
-            return res.status(500).json({ message: "Error in adding data" });
-          }
-
-          return res.status(201).json({
-            message: "Registration successful",
-          });
-        },
-      );
-    } catch (error) {
-      return res.status(500).json({ message: "Password hashing failed" });
+    const emailExists = await users.findOne({ email });
+    if (emailExists) {
+      return res.status(400).json({ message: "Email already registered" });
     }
-  });
+
+    const phoneExists = await users.findOne({ phone });
+    if (phoneExists) {
+      return res.status(400).json({ message: "Phone already registered" });
+    }
+
+    // 🔐 hash password
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    // 📅 auto registration date
+    const regdate = getCurrentDate();
+
+    const newUser = new users({
+      username,
+      email,
+      phone,
+      profile,
+      role: role || "user",
+      password: hashedPassword,
+      regdate,
+      status: "active"
+    }); 
+
+    await newUser.save();
+
+    // remove password before sending response
+    const { password: pwd, ...userWithoutPassword } = newUser._doc;
+
+    res.status(201).json({
+      message: "Registration successful",
+      user: userWithoutPassword
+    });
+
+  } catch (err) {
+    console.log(err);
+    res.status(500).json({ message: "Server error" });
+  }
 };
-
-
-
-
-
 
 
 exports.loginUser = async (req, res) => {
-  const { email, password } = req.body;
+  try {
+    const { email, password } = req.body;
 
-  checkQuery = `SELECT * FROM users WHERE email=?`;
+    // 1️⃣ check user exists
+    const existingUser = await users.findOne({ email });
 
-  db.query(checkQuery, [email], async (err, result) => {
-    if (err) {
-      console.log("server err login", err);
-      return res.status(500).json({ message: "server error", err });
-    }
-    if (result.length === 0) {
-      return res.status(400).json({ message: "email is Not registred" });
+    if (!existingUser) {
+      return res.status(400).json({ message: "Email is not registered" });
     }
 
-    const loginUser = result[0];
-    const ispassMatch = await bcrypt.compare(password, loginUser.password);
-    if (ispassMatch) {
-      // jwt token generation
-      const token = jwt.sign(
-        { userMail: loginUser.email, role: loginUser.role },
-        process.env.jwtkey,
-      );
-      //  console.log("jwt token ",token);
+    // 2️⃣ compare password
+    const isMatch = await bcrypt.compare(password, existingUser.password);
 
-      res.status(200).json({ message: "login successfull", token ,loginUser});
-    } else {
-      res.status(400).json({ message: "password missmatch" });
+    if (!isMatch) {
+      return res.status(400).json({ message: "Password mismatch" });
     }
-  });
+
+    // 3️⃣ generate JWT token
+    const token = jwt.sign(
+      {
+        userId: existingUser._id,
+        userMail: existingUser.email,
+        role: existingUser.role
+      },
+      process.env.JWT_KEY,
+      { expiresIn: "1d" }
+    );
+
+    // 4️⃣ remove password before sending response
+    const { password: pwd, ...userWithoutPassword } = existingUser._doc;
+
+    res.status(200).json({
+      message: "Login successful",
+      token,
+      user: userWithoutPassword
+    });
+
+  } catch (err) {
+    console.log(err);
+    res.status(500).json({ message: "Server error" });
+  }
 };
 
 
-exports.googleLogin= async(req,res)=>{
+exports.googleLogin = async (req, res) => {
+  try {
+    const { email, username, profile } = req.body;
 
 
-  try{
-  const {email,name,profile}=req.body
-  checkQuery = `SELECT * FROM users WHERE email=?`
-  db.query(checkQuery,[email], async(err,result)=>{
-    
-    if(err){
-      console.log(err);
-     return res.status(500).json({message:"error in checkQuery"}) 
-    }
-// ✅ If user already exists → Login
-      if (result.length > 0) {
-        const loginUser = result[0];
+    // 1️⃣ check if user already exists
+    let existingUser = await users.findOne({ email });
 
-        const token = jwt.sign(
-          { userMail: loginUser.email, role: loginUser.role },
-          process.env.jwtkey,
-          { expiresIn: "1d" }
-        );
-
-        return res.status(200).json({
-          message: "Login successful",
-          token,
-          loginUser,
-        });
-      }
-
-  
-
-    // ✅ If new user → Register
-      const phone = "000000";
-      const password='123456'
-      const hashedPassword = await bcrypt.hash(password, 10);
-      const role = "user";
-
-      const addQuery = `
-        INSERT INTO users (name, email, phone, password, role, profile) 
-        VALUES (?, ?, ?, ?, ?, ?)
-      `;
-
-      db.query(
-        addQuery,
-        [name, email, phone, hashedPassword, role, profile],
-        (err, result) => {
-          if (err) {
-            console.log(err);
-            return res.status(500).json({ message: "Error in adding user" });
-          }
-console.log(result.userResult);
- 
-          const token = jwt.sign(
-            { userMail: email, role },
-            process.env.jwtkey
-          );
-
-          return res.status(201).json({
-            message: "Registration successful",
-            token,role:"user"
-
-          });
-        }
+    // ✅ USER EXISTS → LOGIN
+    if (existingUser) {
+      const token = jwt.sign(
+        {
+          userId: existingUser._id,
+          userMail: existingUser.email,
+          role: existingUser.role
+        },
+        process.env.JWT_KEY,
+        { expiresIn: "1d" }
       );
+
+      const { password, ...userWithoutPassword } = existingUser._doc;
+
+      return res.status(200).json({
+        message: "Google login successful",
+        token,
+        user: userWithoutPassword
+      });
+    }
+
+    // ❌ NEW USER → REGISTER FIRST
+
+    // default values for google users
+    const phone = "0000000000";
+    const role = "user";
+    const randomPassword = "googleUser123";
+
+    const hashedPassword = await bcrypt.hash(randomPassword, 10);
+
+    // 📅 current date function (reuse from register)
+    const today = new Date();
+    const regdate = `${String(today.getDate()).padStart(2,'0')}/${String(today.getMonth()+1).padStart(2,'0')}/${today.getFullYear()}`;
+
+    const newUser = new users({
+      username,
+      email,
+      phone,
+      profile,
+      role,
+      password: hashedPassword,
+      regdate,
+      status: "active"
     });
-  }
-  catch(err){
-console.log(err);
-res.status(500).json({message:"server error"})
 
+    await newUser.save();
 
+    // create token for new user
+    const token = jwt.sign(
+      {
+        userId: newUser._id,
+        userMail: newUser.email,
+        role: newUser.role
+      },
+      process.env.JWT_KEY,
+      { expiresIn: "1d" }
+    );
+
+    const { password, ...userWithoutPassword } = newUser._doc;
+
+    res.status(201).json({
+      message: "Google registration successful",
+      token,
+      user: userWithoutPassword
+    });
+
+  } catch (err) {
+    console.log(err);
+    res.status(500).json({ message: "Server error" });
   }
-}
+};
