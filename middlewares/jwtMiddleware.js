@@ -10,7 +10,7 @@ const token  = req.headers.authorization.slice(7);
 
 try{
     const jwtVerification = jwt.verify(token,process.env.JWT_KEY);
-    console.log(jwtVerification);
+    console.log(jwtVerification); 
 
     const userData={
         userMail:jwtVerification.userMail,
