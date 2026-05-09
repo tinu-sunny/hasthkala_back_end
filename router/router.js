@@ -12,6 +12,8 @@ const route = express.Router()
  route.post('/register-user',userController.registerUser)
 route.post('/user-login',userController.loginUser)
 route.post('/googleLogin',userController.googleLogin)
+route.get('/new-collections',viewproductsadmin)
+route.get('/View-productById/:id',jwtMiddleware,viewproductbyid)
 
 // Admin Routes
 route.get('/admin',jwtMiddleware,roleMiddleware('admin'),adminAccess)
